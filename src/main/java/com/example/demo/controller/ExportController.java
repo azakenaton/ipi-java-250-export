@@ -134,7 +134,7 @@ public class ExportController {
             Cell total = rowTotal.createCell(0);
             total.setCellValue("Total : ");
 
-            CellStyle style = total.getCellStyle();
+            CellStyle style = workbook.createCellStyle();
             Font font = workbook.createFont();
 
             font.setBold(true);
@@ -147,6 +147,7 @@ public class ExportController {
 
             Cell totalValue = rowTotal.createCell(1);
             totalValue.setCellValue(facture.getTotal());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
             total.setCellStyle(style);
             totalValue.setCellStyle(style);
