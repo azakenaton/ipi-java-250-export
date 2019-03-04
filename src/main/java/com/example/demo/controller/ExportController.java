@@ -1,11 +1,12 @@
 package com.example.demo.controller;
 
 import com.example.demo.entity.Client;
+import com.example.demo.entity.Facture;
+import com.example.demo.entity.LigneFacture;
+import com.example.demo.repository.FactureRepository;
 import com.example.demo.service.ClientService;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import com.example.demo.service.FactureService;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -15,14 +16,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-import java.util.regex.*;
+import java.util.Set;
 
 /**
  * Controlleur pour réaliser les exports.
@@ -33,6 +37,9 @@ public class ExportController {
 
     @Autowired
     private ClientService clientService;
+    @Autowired
+    private FactureService factureService;
+
 
     @GetMapping("/clients/csv")
     public void clientsCSV(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -45,7 +52,7 @@ public class ExportController {
         for(Client client : clients){
             String nom = client.getNom().replaceAll("\\W","");
             String prenom = client.getPrenom().replaceAll("\\W","");
-            writer.println(nom+";"+prenom+";"+client.getDateNaissance().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))+";"+client.getAge());
+            writer.println(nom+";"+prenom+";"+client.getDateNaissance().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))+(now.getYear() - client.getDateNaissance().getYear()));
         }
     }
 
@@ -84,6 +91,72 @@ public class ExportController {
         workbook.close();
     }
 
+    @GetMapping("/factures/xlsx")
+    public void facturesXlsx(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("application/vnd.ms-excel");
+        response.setHeader("Content-Disposition", "attachment; filename=\"factures.xlsx\"");
+
+        List<Facture> allFactures = factureService.findAllFactures();
+        List<Long> clientID = new ArrayList<Long>();
+
+        Workbook workbook = new XSSFWorkbook();
+
+        for (Facture facture : allFactures){
+
+            Long clientId = facture.getClient().getId();
+            if(!clientID.contains(clientId)){
+                Sheet clientSheet = workbook.createSheet(facture.getClient().getNom() + ' ' + facture.getClient().getPrenom());
+                clientID.add(clientId);
+            }
+            Sheet factureSheet = workbook.createSheet("Facture " + facture.getId().toString());
+            Row headerRow = factureSheet.createRow(0);
+
+            Cell cellHeaderNom = headerRow.createCell(0);
+            cellHeaderNom.setCellValue("Nom");
+            Cell cellHeaderQuantite = headerRow.createCell(1);
+            cellHeaderQuantite.setCellValue("Quantite");
+            Cell cellHeaderPrixU = headerRow.createCell(2);
+            cellHeaderPrixU.setCellValue("Prix Unitaire");
+            Cell cellHeaderPrixL = headerRow.createCell(3);
+            cellHeaderPrixL.setCellValue("Prix Ligne");
+
+            int rownum = 1;
+            Set<LigneFacture> ligneFactureList = facture.getLigneFactures();
+            for(LigneFacture ligne : ligneFactureList) {
+                int column = 0;
+                Row row = factureSheet.createRow(rownum++);
+                row.createCell(column++).setCellValue(ligne.getArticle().getLibelle());
+                row.createCell(column++).setCellValue(ligne.getQuantite());
+                row.createCell(column++).setCellValue(ligne.getArticle().getPrix());
+                row.createCell(column++).setCellValue(ligne.getArticle().getPrix() * ligne.getQuantite());
+            }
+            Row rowTotal = factureSheet.createRow(rownum++);
+            Cell total = rowTotal.createCell(0);
+            total.setCellValue("Total : ");
+
+            CellStyle style = total.getCellStyle();
+            Font font = workbook.createFont();
+
+            font.setBold(true);
+            font.setColor(IndexedColors.RED.getIndex());
+            style.setFont(font);
+            style.setBorderTop(BorderStyle.MEDIUM);
+            style.setBorderBottom(BorderStyle.MEDIUM);
+            style.setBorderLeft(BorderStyle.MEDIUM);
+            style.setBorderRight(BorderStyle.MEDIUM);
+
+            Cell totalValue = rowTotal.createCell(1);
+            totalValue.setCellValue(facture.getTotal());
+
+            total.setCellStyle(style);
+            totalValue.setCellStyle(style);
+        }
+
+        workbook.write(response.getOutputStream());
+        workbook.close();
+
+    }
+
     @GetMapping("/clients/{id}/factures/xlsx")
     public void ClientXLSX(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") Long id) throws IOException {
         Client client = clientService.findClientById(id);
@@ -117,3 +190,4 @@ public class ExportController {
     }
 
 }
+

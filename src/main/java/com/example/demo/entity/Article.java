@@ -1,7 +1,11 @@
 package com.example.demo.entity;
 
 import javax.persistence.*;
+import java.time.LocalDate;
 
+/**
+ * Created by Alexandre on 09/04/2018.
+ */
 @Entity
 public class Article {
 
@@ -13,7 +17,7 @@ public class Article {
     private String libelle;
 
     @Column
-    private Integer prix;
+    private double prix;
 
     public Long getId() {
         return id;
@@ -31,11 +35,11 @@ public class Article {
         this.libelle = libelle;
     }
 
-    public Integer getPrix() {
+    public double getPrix() {
         return prix;
     }
 
-    public void setPrix(Integer prix) {
+    public void setPrix(double prix) {
         this.prix = prix;
     }
 }
